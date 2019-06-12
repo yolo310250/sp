@@ -8,6 +8,7 @@ char *tokens;
 
 int E();
 int F();
+int T();
 
 void error(char *msg) {
   printf("%s", msg);
@@ -39,11 +40,81 @@ void genOp1(int i, char c) {
   printf("# t%d=%c\n", i, c);
   // t1=3 轉成 @3; D=A; @t1; M=D
   printf("@%c\n", c);
-  printf("D=A\n");
+  (isdigit(c)) ?   printf("D=A\n") : printf("D=M\n");
   printf("@t%d\n", i);
   printf("M=D\n");
 }
 
+void genOp2(int i, int i1, char op, int i2) {
+  printf("# t%d=t%d%ct%d\n", i, i1, op, i2);
+  // t0=t1+t2 轉成 @t1; D=M; @t2; D=D+M; @t0; M=D;
+  printf("@t%d\n", i1);
+  printf("D=M\n");
+  printf("@t%d\n", i2);
+  printf("D=D%cM\n", op);
+  printf("@t%d\n", i);
+  printf("M=D\n");
+}
+
+// E = F ([+-] F)*
+int E() {
+  int i1 = T();
+  while (isNext("+-")) {
+    char op=next();
+    int i2 = T();
+    int i = nextTemp();
+    genOp2(i, i1, op, i2);
+    i1 = i;
+  }
+  return i1;
+}
+
+
+// F =  Number | '(' E ')'
+int F() {
+  int f;
+  char c = ch();
+  if (isdigit(c)||isalpha(c)) {
+    next(); // skip c
+    f = nextTemp();
+    genOp1(f, c);
+  } else if (c=='(') { // '(' E ')'
+    next();
+    f = E();
+    assert(ch()==')');
+    next();
+  } else {
+    error("F = (E) | Number fail!");
+  }
+  return f; 
+}
+
+// 程式中讀取的 */
+int T() {
+  int i1 = F();
+  while (isNext("*/")) {
+    char op = next();
+    int i2 = F();
+    int i = nextTemp();
+    genOp2(i, i1, op, i2);
+    i1 =i;
+  }
+  return i1;
+}
+
+void parse(char *str) {
+  tokens = str;
+  E();
+}
+
+int main(int argc, char * argv[]) {
+  printf("=== EBNF Grammar =====\n");
+  printf("E=T ([+-] T)*\n");
+  printf("T=F ([*/] F)*\n");
+  printf("F=Number | '(' E ')'\n");
+  printf("==== parse:%s ========\n", argv[1]);
+  parse(argv[1]);
+}
 void genOp2(int i, int i1, char op, int i2) {
   printf("# t%d=t%d%ct%d\n", i, i1, op, i2);
   // t0=t1+t2 轉成 @t1; D=M; @t2; D=D+M; @t0; M=D;
